@@ -82,15 +82,13 @@ def admin_credentials():
 
 
 @pytest.fixture(scope='session')
-async def client(base_url):
-    app = create_app()
-    async with LifespanManager(app) as manager:
-        transport = ASGITransport(app=manager.app)
-        async with httpx.AsyncClient(transport=transport, base_url=base_url) as client:
-            client.headers.update({
-                'User-Agent': 'DediRegistrySmokeTest/1.0',
-            })
-            yield client
+async def client(base_url, app_manager):
+    transport = ASGITransport(app=app_manager.app)
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as client:
+        client.headers.update({
+            'User-Agent': 'DediRegistrySmokeTest/1.0',
+        })
+        yield client
 
 
 def solve_challenge(nonce: str, difficulty: int) -> int:
@@ -329,6 +327,55 @@ async def test_update_network(client):
     request_details = update_audit['requestDetail']
     assert request_details['userAgent'] == 'DediRegistrySmokeTest/1.0'
     assert audits[0]['hashAfter'] == update_audit['hashBefore']
+
+
+async def test_node_joins_and_leaves_network(client):
+    node_id_2 = str(uuid.uuid4())
+    node_1 = {
+        'nodeId': NODE_ID_1,
+        'nodeName': NODE_NAME_1,
+        'url': NODE_URL_1,
+        'description': 'This node is now updated.',
+        'publicKey': NODE_PUBLIC_PEM_1,
+    }
+    node_2 = {
+        'nodeId': node_id_2,
+        'nodeName': 'Joining Node',
+        'url': 'http://localhost:5878',
+        'description': '',
+        'publicKey': NODE_PUBLIC_PEM_1,
+    }
+
+    async def put_nodes(nodes: list[dict]):
+        data = {
+            'description': 'This network is now updated.',
+            'networkId': NETWORK_ID,
+            'networkName': f'Updated Test Network {NETWORK_ID}',
+            # The signed form lists nodes sorted by ID, whatever order they are sent in
+            'nodes': sorted(nodes, key=lambda node: node['nodeId']),
+            'publicKey': NETWORK_PUBLIC_PEM,
+        }
+        serialised = json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        signature = NETWORK_PRIVATE_KEY.sign(
+            data=serialised.encode(),
+            signature_algorithm=ec.ECDSA(hashes.SHA384()),
+        ).hex()
+
+        return await client.put(
+            url=f'/api/v1/networks/{NETWORK_ID}',
+            json=data,
+            headers={'Node-ID': NODE_ID_1, 'Node-Signature': signature},
+        )
+
+    async def stored_node_ids() -> set[str]:
+        stored = (await client.get(f'/api/v1/networks/{NETWORK_ID}')).json()
+        return {node['nodeId'] for node in stored['nodes']}
+
+    assert (await put_nodes([node_1, node_2])).status_code == 202
+    assert await stored_node_ids() == {NODE_ID_1, node_id_2}
+
+    assert (await put_nodes([node_1])).status_code == 202
+    assert await stored_node_ids() == {NODE_ID_1}
 
 
 async def test_pending_network_hidden_from_visitors(client):

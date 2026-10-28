@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
-from fastapi.exceptions import HTTPException
+from starlette.exceptions import HTTPException
 from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
 from asgi_csrf import asgi_csrf
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest

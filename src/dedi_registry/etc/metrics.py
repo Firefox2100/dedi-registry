@@ -75,13 +75,25 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
                        ) -> Response:
         method = request.method
 
-        # Try to use the template path if available
-        path = request.scope.get('route').path if request.scope.get('route') else request.url.path
-
-        if path.startswith('/metrics'):
+        if request.url.path.startswith('/metrics'):
             return await call_next(request)
 
         is_websocket = request.headers.get('upgrade', '').lower() == 'websocket'
+
+        start_time = time.monotonic()
+
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            LOGGER.exception('Error processing request %s %s: %s', method, request.url.path, e)
+            raise e
+        finally:
+            duration = time.monotonic() - start_time
+
+        # The router only records the matched route once the request has been handled. Label
+        # by its template so every ID does not become a series of its own
+        route = request.scope.get('route')
+        path = route.path if route else request.url.path
 
         if not is_websocket:
             # Use the declared length rather than reading the body: consuming and replaying
@@ -92,19 +104,9 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
             except ValueError as e:
                 LOGGER.error('Invalid Content-Length header: %s', e)
 
-        start_time = time.monotonic()
-
-        try:
-            response = await call_next(request)
-        except Exception as e:
-            LOGGER.exception('Error processing request %s %s: %s', method, path, e)
-            raise e
-        finally:
-            duration = time.monotonic() - start_time
-
         status_code = response.status_code
         headers = MutableHeaders(response.headers)
-        is_sse = headers.get('content-type') == 'text/event-stream'
+        is_sse = headers.get('content-type', '').startswith('text/event-stream')
 
         if not is_websocket and not is_sse:
             try:

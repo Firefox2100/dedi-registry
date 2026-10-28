@@ -25,6 +25,8 @@
             status.textContent = '';
           }
         }, 1800);
+      }).catch(function () {
+        // Permission denied or no focus: leave the button as it was, the text stays selectable
       });
     });
   });

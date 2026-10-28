@@ -284,7 +284,7 @@ class MongoNetworkAuditRepository(NetworkAuditRepository):
         :return: None
         """
         existing_doc = await self.collection.find_one(
-            {'networkId': audit.network_id, 'version': audit.version},
+            {'networkId': str(audit.network_id), 'version': audit.version},
             {'_id': 1}
         )
 
