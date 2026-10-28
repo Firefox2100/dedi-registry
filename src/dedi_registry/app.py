@@ -82,19 +82,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=set(CONFIG.allow_origins) or (),
-        allow_credentials=True,
-        allow_methods=('GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'),
-        allow_headers=(
-            'Authorization',
-            'Content-Type',
-            'Accept',
-            'X-Requested-With',
-        ),
-    )
-
     @app.middleware('http')
     async def disable_cors_for_api(request, call_next):
         if request.url.path.startswith('/api'):
@@ -156,6 +143,21 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(PrometheusMetricsMiddleware)
+
+    # Added last so it is the outermost layer: it answers preflight requests itself and
+    # puts its headers on responses produced by every other middleware, errors included
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=set(CONFIG.allow_origins) or (),
+        allow_credentials=True,
+        allow_methods=('GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'),
+        allow_headers=(
+            'Authorization',
+            'Content-Type',
+            'Accept',
+            'X-Requested-With',
+        ),
+    )
 
     app.include_router(admin_router)
     app.include_router(api_router)
@@ -246,8 +248,8 @@ def main():
 
     uvicorn.run(
         app,
-        host='0.0.0.0',
-        port=5000,
+        host=CONFIG.host,
+        port=CONFIG.port,
         log_config={
             'version': 1,
             'disable_existing_loggers': False,

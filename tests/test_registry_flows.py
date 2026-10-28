@@ -557,3 +557,25 @@ class TestOperationalEndpoints:
         response = await visitor.get('/metrics')
 
         assert 'endpoint="/metrics"' not in response.text
+
+
+class TestCrossOrigin:
+    async def test_api_answers_any_origin(self, visitor):
+        response = await visitor.get('/api/v1/challenge', headers={'Origin': 'https://gateway.example'})
+
+        assert response.status_code == 200
+        assert response.headers['access-control-allow-origin'] == '*'
+
+    async def test_ui_does_not_grant_unlisted_origins(self, visitor):
+        response = await visitor.get('/networks', headers={'Origin': 'https://evil.example'})
+
+        assert response.status_code == 200
+        assert 'access-control-allow-origin' not in response.headers
+
+    async def test_error_responses_from_the_api_carry_cors_headers(self, visitor):
+        response = await visitor.get(
+            f'/api/v1/networks/{uuid.uuid4()}', headers={'Origin': 'https://gateway.example'}
+        )
+
+        assert response.status_code == 404
+        assert response.headers['access-control-allow-origin'] == '*'

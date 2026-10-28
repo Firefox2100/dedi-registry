@@ -54,7 +54,7 @@ Assuming you have started the databases as needed and configured them correctly,
 uvicorn dedi_registry.asgi:application --host 0.0.0.0 --port 5000 --log-config conf/uvicorn-log.config.yaml
 ```
 
-Or, the `pip install` earlier should have installed a `dedi-registry` command that is available as long as the Python environment is activated:
+Or, the `pip install` earlier should have installed a `dedi-registry` command that is available as long as the Python environment is activated. It listens on `127.0.0.1:5000` unless `DR_HOST` and `DR_PORT` say otherwise:
 
 ```bash
 dedi-registry
@@ -81,6 +81,8 @@ The software is configured via environment variables. A sample configuration fil
 | Variable           | Description                                               | Default Value |
 |--------------------|-----------------------------------------------------------|---------------|
 | DR_ENV_FILE        | Path to the .env file                                     | ./conf/.env   |
+| DR_HOST            | Address the `dedi-registry` command binds to              | 127.0.0.1     |
+| DR_PORT            | Port the `dedi-registry` command listens on               | 5000          |
 | DR_AUTO_APPROVE    | Whether to automatically approve network registrations    | false         |
 | DR_ALLOW_ORIGINS   | List of allowed origins for CORS                          | []            |
 | DR_DATABASE_DRIVER | Database driver to use (mongo)                            | mongo         |

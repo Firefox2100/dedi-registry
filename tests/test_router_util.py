@@ -53,3 +53,24 @@ def test_network_detail_pages_are_allowed():
     path = '/networks/3f9a1c6e-7c52-4b2e-9d8a-0a1b2c3d4e5f'
 
     assert sanitise_next_url(path) == path
+
+
+class TestEntryPoint:
+    def test_main_binds_to_the_configured_address(self):
+        from unittest.mock import patch
+
+        from dedi_registry.app import main
+        from dedi_registry.etc.consts import CONFIG
+
+        with patch('dedi_registry.app.uvicorn.run') as run, \
+                patch.object(CONFIG, 'host', '127.0.0.9'), \
+                patch.object(CONFIG, 'port', 5999):
+            main()
+
+        assert run.call_args.kwargs['host'] == '127.0.0.9'
+        assert run.call_args.kwargs['port'] == 5999
+
+    def test_default_is_loopback_only(self):
+        from dedi_registry.etc.consts import Settings
+
+        assert Settings.model_fields['host'].default == '127.0.0.1'

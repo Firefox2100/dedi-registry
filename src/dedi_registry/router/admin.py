@@ -105,9 +105,9 @@ async def get_admin_login_page(request: Request,
     next_url = sanitise_next_url(next_url)
 
     if request.session.get('username', None):
-        # If already logged in, redirect to the dashboard or next_url
-        redirect_url = next_url or request.url_for('get_admin_dashboard')
-        return RedirectResponse(redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+        # Already signed in: go on to the page they were headed for. next_url has been
+        # through sanitise_next_url, so it is a known local path and never an external URL
+        return RedirectResponse(next_url, status_code=status.HTTP_303_SEE_OTHER)
 
     return TEMPLATES.TemplateResponse(
         request,
