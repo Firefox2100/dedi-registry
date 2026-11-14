@@ -1,0 +1,91 @@
+name: Dependency Analysis with Dependency-Track
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Reached over Tailscale rather than the public hostname: Cloudflare's bot challenge
+  # blocks GitHub-hosted runners. Traffic is encrypted by WireGuard, hence plain http.
+  DT_HOSTNAME: 100.86.189.45
+  DT_PORT: "9080"
+  DT_PROTOCOL: http
+  # Must still match the audience configured on the workload identity provider.
+  DT_AUDIENCE: https://dependency.firefox2100.co.uk
+  DT_PROVIDER: github-actions
+  DT_SERVICE_ACCOUNT: github-dedi-registry
+
+jobs:
+  analysis:
+    name: Generate and upload SBOM for analysis
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+
+      - name: Extract version
+        run: |
+          VERSION=$(awk -F'"' '/^__version__/ {print $2}' ./src/dedi_registry/__init__.py)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # Resolve the runtime dependency set (same as the Docker image) without
+      # installing it, then convert the pinned result to CycloneDX.
+      - name: Generate SBOM
+        run: |
+          pip install uv==0.13.8 cyclonedx-bom==8.0.1
+          uv pip compile pyproject.toml --python-version 3.11 \
+            --no-header -o requirements.lock
+          cyclonedx-py requirements requirements.lock \
+            --pyproject pyproject.toml \
+            --sv 1.6 --of JSON -o bom.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: bom.json
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: ${{ env.DT_HOSTNAME }}
+
+      - name: Upload SBOM to Dependency-Track
+        uses: DependencyTrack/gh-upload-sbom@331f980a6eba119842052f447c54b09e4888b4c6 # v4.3.0
+        with:
+          server-hostname: ${{ env.DT_HOSTNAME }}
+          port: ${{ env.DT_PORT }}
+          protocol: ${{ env.DT_PROTOCOL }}
+          workload-identity-provider: ${{ env.DT_PROVIDER }}
+          service-account: ${{ env.DT_SERVICE_ACCOUNT }}
+          oidc-audience: ${{ env.DT_AUDIENCE }}
+          project-name: dedi-registry
+          project-version: ${{ env.VERSION }}
+          project-tags: python
+          bom-filename: bom.json
+          auto-create: true
+          is-latest: ${{ github.ref == 'refs/heads/main' }}
