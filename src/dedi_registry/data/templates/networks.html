@@ -1,58 +1,55 @@
 {% extends "base.html" %}
+{% from "_macros.html" import search_form, network_table %}
+{% block header_search %}{% endblock %}
 {% block content %}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-      <h1 class="h4 mb-0">Networks</h1>
-      <p class="text-muted mb-0">
-        Current networks in the registry {% if network_status %} (status: <span class="badge text-bg-secondary">{{ network_status }}</span>){% endif %}.
-      </p>
-    </div>
+  <h1>Networks</h1>
+  <p class="lede">
+    {% if query %}
+      Networks with “{{ query }}” in the name.
+    {% elif is_admin %}
+      Every network in the registry, whatever its status.
+    {% else %}
+      Active networks. Open one to see its nodes and public keys.
+    {% endif %}
+  </p>
+
+  <div class="toolbar">
+    {{ search_form(query, 'networks-search') }}
   </div>
 
-  {% if networks and networks|length > 0 %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
-          <tr>
-            <th scope="col">Network ID</th>
-            <th scope="col">Name</th>
-            <th scope="col" class="w-50">Description</th>
-            <th scope="col" class="text-end">Node Count</th>
-            <th scope="col" class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for n in networks %}
-            <tr>
-              <td class="text-monospace small">{{ n.network_id }}</td>
-              <td>{{ n.network_name }}</td>
-              <td class="text-truncate">{{ n.description }}</td>
-              <td class="text-end">{{ n.nodes | length }}</td>
-              <td class="text-end">
-                <!-- Placeholder details link; wire up later -->
-                <a class="btn btn-sm btn-outline-primary" href="/networks/{{ n.network_id }}">View</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="d-flex justify-content-between mt-3">
-      <div>
-        {% if prev_url %}
-          <a class="btn btn-outline-secondary" href="{{ prev_url }}">&laquo; Previous</a>
-        {% endif %}
-      </div>
-      <div>
-        {% if next_url %}
-          <a class="btn btn-outline-secondary" href="{{ next_url }}">Next &raquo;</a>
-        {% endif %}
-      </div>
-    </div>
-  {% else %}
-    <div class="alert alert-info">
-      No networks found.
-    </div>
+  {% if is_admin %}
+    <nav aria-label="Filter by status">
+      <ul class="filters">
+        {% for f in status_filters %}
+          <li><a href="{{ f.url }}"{% if f.active %} aria-current="true"{% endif %}>{{ f.label }} <span class="n">{{ f.count }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </nav>
   {% endif %}
+
+  <div class="results">
+    {% if networks %}
+      {{ network_table(networks, show_status=is_admin) }}
+
+      {% if prev_url or next_url %}
+        <nav class="pager" aria-label="Pagination">
+          {% if prev_url %}<a class="button" href="{{ prev_url }}" rel="prev">Previous</a>{% else %}<span></span>{% endif %}
+          {% if next_url %}<a class="button" href="{{ next_url }}" rel="next">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% elif query %}
+      <div class="empty">
+        <h2>No networks match “{{ query }}”</h2>
+        <p>Check the spelling or try a shorter name. <a href="/networks">Show all networks</a></p>
+      </div>
+    {% else %}
+      <div class="empty">
+        <h2>No networks to show</h2>
+        <p>
+          {% if is_admin and network_status %}No network has the status “{{ network_status }}”. <a href="/networks">Show all</a>
+          {% else %}Networks appear here once a gateway has registered one and an administrator has approved it.{% endif %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}

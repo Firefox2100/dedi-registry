@@ -1,55 +1,64 @@
+{% from "_macros.html" import search_form %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>{{ page_title or "Decentralised Discovery Networks Registry" }}</title>
-  <meta name="description" content="{{ meta_description or 'A page in Decentralised Discovery Networks Registry' }}" />
+  <title>{{ page_title or "Decentralised Discovery Network Registry" }}</title>
+  <meta name="description" content="{{ meta_description or 'Find networks that run the Decentralised Discovery Gateway protocol, and see how to join them.' }}" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b5cad' stroke-width='1.75' stroke-linecap='round'%3E%3Cpath d='M12 5.5 5.5 17.5M12 5.5l6.5 12M5.5 17.5h13'/%3E%3Ccircle cx='12' cy='5.5' r='2.25' fill='%23fff'/%3E%3Ccircle cx='5.5' cy='17.5' r='2.25' fill='%23fff'/%3E%3Ccircle cx='18.5' cy='17.5' r='2.25' fill='%23fff'/%3E%3C/svg%3E" />
   <link href="{{ url_for('static', path='vendor/bootstrap/5.3.8/css/bootstrap.min.css') }}" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/custom.css') }}" />
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-light bg-body-tertiary">
-    <div class="container">
-      <a class="navbar-brand" href="/">Decentralised Discovery Networks Registry</a>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-      <!-- Mobile toggler -->
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
-              aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5.5 5.5 17.5M12 5.5l6.5 12M5.5 17.5h13"/>
+          <circle cx="12" cy="5.5" r="2.25" fill="var(--surface)"/>
+          <circle cx="5.5" cy="17.5" r="2.25" fill="var(--surface)"/>
+          <circle cx="18.5" cy="17.5" r="2.25" fill="var(--surface)"/>
+        </svg>
+        <span class="brand__name">Decentralised Discovery Network Registry</span>
+        <span class="brand__short">DDN Registry</span>
+      </a>
 
-      <div id="mainNav" class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-          {% block nav_links %}
-            {% if nav_links %}
-              {% for link in nav_links %}
-                <li class="nav-item">
-                  {% if link.active %}
-                    <a class="nav-link active disabled" aria-current="page" aria-disabled="true"
-                       href="{{ link.url }}">{{ link.label }}</a>
-                  {% else %}
-                    <a class="nav-link" href="{{ link.url }}">{{ link.label }}</a>
-                  {% endif %}
-                </li>
-              {% endfor %}
-            {% endif %}
-          {% endblock %}
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          {% for link in nav_links or [] %}
+            <li>
+              <a class="nav-link" href="{{ link.url }}"{% if link.active %} aria-current="page"{% endif %}>{{ link.label }}</a>
+            </li>
+          {% endfor %}
         </ul>
+      </nav>
+
+      <div class="header-search">
+        {% block header_search %}{{ search_form(none, 'header-search', placeholder='Search') }}{% endblock %}
       </div>
     </div>
-  </nav>
+  </header>
 
-  <main class="container py-5">
+  <main id="main" class="page">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="border-top py-4">
-    <div class="container text-muted small">
-      © {{ 2025 }} Decentralised Discovery Networks Registry — by Firefox2100
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <span>Decentralised Discovery Network Registry {{ app_version }}</span>
+      <ul>
+        <li><a href="/docs">API documentation</a></li>
+        <li><a href="https://github.com/Firefox2100/dedi-gateway" rel="noopener">Gateway</a></li>
+        <li><a href="https://github.com/Firefox2100/dedi-registry" rel="noopener">Source</a></li>
+      </ul>
     </div>
   </footer>
 
-  <script nonce="{{ request.state.csp_nonce }}" src="{{ url_for('static', path='vendor/bootstrap/5.3.8/js/bootstrap.bundle.min.js') }}"></script>
+  <span id="copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+  <script nonce="{{ request.state.csp_nonce }}" src="{{ url_for('static', path='js/app.js') }}" defer></script>
 </body>
 </html>

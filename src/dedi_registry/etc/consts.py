@@ -18,6 +18,15 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
     )
 
+    host: str = Field(
+        '127.0.0.1',
+        description='Address the `dedi-registry` command binds to. Containers and reverse '
+                    'proxies need to set this explicitly; `uvicorn` takes its own --host option',
+    )
+    port: int = Field(
+        5000,
+        description='Port the `dedi-registry` command listens on',
+    )
     auto_approve: bool = Field(
         False,
         description='Automatically approve network registration requests for unattended deployments',

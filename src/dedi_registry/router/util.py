@@ -1,10 +1,12 @@
 import re
 import posixpath
+from datetime import datetime, timezone
 import importlib.resources as pkg_resources
 from urllib.parse import urlsplit, urlunsplit
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+from dedi_registry import __version__
 from dedi_registry.database import Database
 from dedi_registry.model.network import Network, NetworkAuditRequestDetail
 
@@ -52,17 +54,18 @@ async def build_nav_links(request: Request, db: Database) -> list[dict]:
             username = None
             request.session['username'] = None
 
+    # The brand in the header links to the home page, so it has no entry here
     nav_links = [
-        {
-            'label': 'Home',
-            'url': request.url_for('get_home_page'),
-            'active': path == '/',
-        },
         {
             'label': 'Networks',
             'url': request.url_for('display_networks'),
             'active': path.startswith('/networks'),
-        }
+        },
+        {
+            'label': 'API',
+            'url': '/docs',
+            'active': False,
+        },
     ]
 
     if username:
@@ -122,7 +125,11 @@ def get_templates() -> Jinja2Templates:
     :return:
     """
     template_path = pkg_resources.files('dedi_registry.data') / 'templates'
-    return Jinja2Templates(directory=str(template_path))
+    templates = Jinja2Templates(directory=str(template_path))
+    templates.env.globals['app_version'] = __version__
+    templates.env.globals['current_year'] = lambda: datetime.now(tz=timezone.utc).year
+
+    return templates
 
 
 TEMPLATES = get_templates()

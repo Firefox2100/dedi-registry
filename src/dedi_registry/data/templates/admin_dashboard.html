@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import fingerprint %}
+{% block content %}
+  <h1>Moderation</h1>
+  <p class="lede">Registrations waiting for review, and how many networks hold each status.</p>
+
+  <ul class="status-summary" aria-label="Networks by status">
+    {% set labels = {'active': 'Active', 'pending': 'Pending', 'rejected': 'Rejected', 'blacklisted': 'Banned'} %}
+    {% for item in status_counts %}
+      <li><a href="{{ item.url }}">{{ labels.get(item.status, item.status|title) }} <span class="n">{{ item.count }}</span></a></li>
+    {% endfor %}
+  </ul>
+
+  <section class="section" aria-labelledby="queue-heading">
+    <div class="section-head">
+      <h2 id="queue-heading">Waiting for review <span class="count">{{ pending|length }}</span></h2>
+    </div>
+
+    {% if pending %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Network</th>
+              <th scope="col" class="num">Nodes</th>
+              <th scope="col" class="col-id">ID</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in pending %}
+              <tr>
+                <td>
+                  <a class="name" href="/networks/{{ n.network_id }}">{{ n.network_name }}</a>
+                  {% if n.description %}<div class="summary">{{ n.description }}</div>{% endif %}
+                </td>
+                <td class="num">{{ n.nodes|length }}</td>
+                <td class="col-id">{{ fingerprint(n.network_id, 'Copy network ID of ' ~ n.network_name) }}</td>
+                <td>
+                  <div class="actions">
+                    <a class="button" href="/networks/{{ n.network_id }}">Review<span class="visually-hidden"> {{ n.network_name }}</span></a>
+                    <form method="post" action="{{ url_for('approve_network_registration', network_id=n.network_id) }}">
+                      <input type="hidden" name="csrftoken" value="{{ request.scope.csrftoken() }}">
+                      <input type="hidden" name="next" value="/admin">
+                      <button type="submit" class="button button--primary">Accept<span class="visually-hidden"> {{ n.network_name }}</span></button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <h2>Nothing is waiting</h2>
+        <p>New registrations appear here as they arrive. Open a status above to browse the others.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

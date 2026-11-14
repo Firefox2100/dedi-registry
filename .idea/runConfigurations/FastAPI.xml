@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="FastAPI" type="Python.FastAPI">
-    <option name="additionalOptions" value="--reload --host 0.0.0.0 --port 5000" />
+    <option name="additionalOptions" value="--reload --host 0.0.0.0 --port 5121" />
     <option name="appName" value="application" />
     <option name="file" value="$PROJECT_DIR$/src/dedi_registry/asgi.py" />
     <module name="dedi-registry" />
@@ -13,6 +13,7 @@
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
+    <option name="DEBUG_JUST_MY_CODE" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <EXTENSION ID="net.ashald.envfile">
       <option name="IS_ENABLED" value="false" />
@@ -24,6 +25,7 @@
         <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
       </ENTRIES>
     </EXTENSION>
+    <option name="RUN_TOOL" value="" />
     <option name="launchJavascriptDebuger" value="false" />
     <method v="2" />
   </configuration>

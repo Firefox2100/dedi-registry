@@ -75,35 +75,38 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
                        ) -> Response:
         method = request.method
 
-        # Try to use the template path if available
-        path = request.scope.get('route').path if request.scope.get('route') else request.url.path
-
-        if path.startswith('/metrics'):
+        if request.url.path.startswith('/metrics'):
             return await call_next(request)
 
         is_websocket = request.headers.get('upgrade', '').lower() == 'websocket'
-
-        if not is_websocket:
-            try:
-                body = await request.body()
-                HTTP_REQUEST_SIZE.labels(method=method, endpoint=path).observe(len(body))
-                request._receive = self.receive_stream_once(body)
-            except Exception as e:
-                LOGGER.error('Failed to read request body: %s', e)
 
         start_time = time.monotonic()
 
         try:
             response = await call_next(request)
         except Exception as e:
-            LOGGER.exception('Error processing request %s %s: %s', method, path, e)
+            LOGGER.exception('Error processing request %s %s: %s', method, request.url.path, e)
             raise e
         finally:
             duration = time.monotonic() - start_time
 
+        # The router only records the matched route once the request has been handled. Label
+        # by its template so every ID does not become a series of its own
+        route = request.scope.get('route')
+        path = route.path if route else request.url.path
+
+        if not is_websocket:
+            # Use the declared length rather than reading the body: consuming and replaying
+            # it here breaks file responses on newer Starlette and buffers uploads in memory
+            try:
+                request_size = int(request.headers.get('content-length', 0))
+                HTTP_REQUEST_SIZE.labels(method=method, endpoint=path).observe(request_size)
+            except ValueError as e:
+                LOGGER.error('Invalid Content-Length header: %s', e)
+
         status_code = response.status_code
         headers = MutableHeaders(response.headers)
-        is_sse = headers.get('content-type') == 'text/event-stream'
+        is_sse = headers.get('content-type', '').startswith('text/event-stream')
 
         if not is_websocket and not is_sse:
             try:
@@ -123,19 +126,3 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
             LOGGER.error('Failed to increment request counter: %s', e)
 
         return response
-
-    @staticmethod
-    def receive_stream_once(body: bytes) -> Callable:
-        """
-        Replaces request._receive with a new stream that only yields the original body once.
-        """
-        sent = False
-
-        async def receive():
-            nonlocal sent
-            if not sent:
-                sent = True
-                return {'type': 'http.request', 'body': body, 'more_body': False}
-            return {'type': 'http.request', 'body': b'', 'more_body': False}
-
-        return receive

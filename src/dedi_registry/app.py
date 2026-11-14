@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
-from fastapi.exceptions import HTTPException
+from starlette.exceptions import HTTPException
 from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
 from asgi_csrf import asgi_csrf
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -82,19 +82,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=set(CONFIG.allow_origins) or (),
-        allow_credentials=True,
-        allow_methods=('GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'),
-        allow_headers=(
-            'Authorization',
-            'Content-Type',
-            'Accept',
-            'X-Requested-With',
-        ),
-    )
-
     @app.middleware('http')
     async def disable_cors_for_api(request, call_next):
         if request.url.path.startswith('/api'):
@@ -122,7 +109,7 @@ def create_app() -> FastAPI:
             return response
 
         # Build a strict policy (adjust as you add features)
-        policy = "; ".join([
+        directives = [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
@@ -132,8 +119,13 @@ def create_app() -> FastAPI:
             "font-src 'self'",
             "style-src 'self'",
             f"script-src 'self' 'nonce-{nonce}'",
-            "upgrade-insecure-requests",
-        ])
+        ]
+
+        if CONFIG.use_https:
+            # Upgrading on a plain HTTP deployment would break every sub-resource
+            directives.append("upgrade-insecure-requests")
+
+        policy = "; ".join(directives)
 
         response.headers['Content-Security-Policy'] = policy
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
@@ -151,6 +143,21 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(PrometheusMetricsMiddleware)
+
+    # Added last so it is the outermost layer: it answers preflight requests itself and
+    # puts its headers on responses produced by every other middleware, errors included
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=set(CONFIG.allow_origins) or (),
+        allow_credentials=True,
+        allow_methods=('GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'),
+        allow_headers=(
+            'Authorization',
+            'Content-Type',
+            'Accept',
+            'X-Requested-With',
+        ),
+    )
 
     app.include_router(admin_router)
     app.include_router(api_router)
@@ -190,7 +197,6 @@ def create_app() -> FastAPI:
         db = get_active_db()
         nav_links = await build_nav_links(request, db)
         context = {
-            'request': request,
             'page_title': f'{exc.status_code} Error | Decentralised Discovery Network Registry',
             'detail': getattr(exc, 'detail', None),
             'nav_links': nav_links,
@@ -200,12 +206,14 @@ def create_app() -> FastAPI:
 
         if exc.status_code == 404:
             return TEMPLATES.TemplateResponse(
+                request,
                 '404.html',
                 context=context,
                 status_code=404
             )
 
         return TEMPLATES.TemplateResponse(
+            request,
             '500.html',
             context=context,
             status_code=exc.status_code
@@ -240,8 +248,8 @@ def main():
 
     uvicorn.run(
         app,
-        host='0.0.0.0',
-        port=5000,
+        host=CONFIG.host,
+        port=CONFIG.port,
         log_config={
             'version': 1,
             'disable_existing_loggers': False,

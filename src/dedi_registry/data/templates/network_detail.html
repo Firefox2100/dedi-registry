@@ -1,237 +1,156 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_pill, copy_button, fingerprint %}
 {% block content %}
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="{{ url_for('display_networks') }}">Networks</a></li>
+      <li aria-current="page">{{ network.network_name }}</li>
+    </ol>
+  </nav>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <h1 class="h4 mb-1">{{ network.network_name }}</h1>
-    <div class="text-muted small">Network details</div>
-  </div>
-  <a class="btn btn-outline-secondary" href="{{ url_for('display_networks') }}">&laquo; Back to Networks</a>
-</div>
+  <div class="detail-head">
+    <h1>{{ network.network_name }} {{ status_pill(network_status) }}</h1>
 
-<!-- Network summary -->
-<div class="card mb-3 shadow-sm">
-  <div class="card-body">
-    <dl class="row mb-0">
-      <dt class="col-sm-3">Network ID</dt>
-      <dd class="col-sm-9"><code class="small">{{ network.network_id }}</code></dd>
-
-      <dt class="col-sm-3">Status</dt>
-      <dd class="col-sm-9"><span class="badge text-bg-secondary">{{ network_status }}</span></dd>
-
-      <dt class="col-sm-3">Name</dt>
-      <dd class="col-sm-9">{{ network.network_name }}</dd>
-
-      <dt class="col-sm-3">Description</dt>
-      <dd class="col-sm-9 text-wrap">{{ network.description or "—" }}</dd>
-
-      <dt class="col-sm-3">Node count</dt>
-      <dd class="col-sm-9">{{ network.nodes|length }}</dd>
-
-      <dt class="col-sm-3">Public Key</dt>
-      <dd class="col-sm-9">
-        <button class="btn btn-sm btn-outline-secondary" type="button"
-                data-bs-toggle="collapse" data-bs-target="#pubKeyCollapse"
-                aria-expanded="false" aria-controls="pubKeyCollapse">
-          Show PEM
-        </button>
-        <div class="collapse mt-2" id="pubKeyCollapse">
-          <pre class="small mb-0">{{ network.public_key }}</pre>
-        </div>
-      </dd>
-    </dl>
-  </div>
-</div>
-
-<!-- Optional admin actions -->
-{% if actions and actions|length > 0 %}
-  <div class="card mb-4 border-0">
-    <div class="card-body pt-2 pb-0">
-      <h2 class="h6 mb-3">Actions</h2>
-      <div class="d-flex flex-wrap gap-2">
+    {% if is_admin and actions %}
+      <div class="admin-actions" role="group" aria-label="Moderation">
         {% for action in actions %}
-          {% set btn_color = action.color or 'secondary' %}
-          <form method="post" action="{{ action.post_url }}" class="d-inline">
-            <input type="hidden" name="csrftoken" value="{{ request.scope.csrftoken() }}">
-            <button
-              type="submit"
-              class="btn btn-{{ btn_color }} btn-sm"
-              {% if btn_color in ['danger','warning'] %}
-                onclick="return confirm('Are you sure?');"
-              {% endif %}
-            >
-              {{ action.label }}
-            </button>
-          </form>
+          {% if action.confirm %}
+            <details class="confirm" name="moderation">
+              <summary class="button{{ ' button--danger' if action.tone == 'danger' }}">{{ action.label }}…</summary>
+              <form class="confirm__panel" method="post" action="{{ action.post_url }}">
+                <p>{{ action.confirm }}</p>
+                <input type="hidden" name="csrftoken" value="{{ request.scope.csrftoken() }}">
+                <button type="submit" class="button{{ ' button--danger' if action.tone == 'danger' }}">{{ action.label }} network</button>
+              </form>
+            </details>
+          {% else %}
+            <form method="post" action="{{ action.post_url }}">
+              <input type="hidden" name="csrftoken" value="{{ request.scope.csrftoken() }}">
+              <button type="submit" class="button button--primary">{{ action.label }}</button>
+            </form>
+          {% endif %}
         {% endfor %}
       </div>
-    </div>
+    {% endif %}
   </div>
-{% endif %}
 
-<!-- Nodes list -->
-<h2 class="h5 mb-3">Nodes</h2>
-{% if network.nodes and network.nodes|length > 0 %}
-  <div class="card mb-4 shadow-sm">
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
-            <tr>
-              <th scope="col" style="width: 18rem;">Name</th>
-              <th scope="col">URL</th>
-              <th scope="col" class="w-50">Description</th>
-              <th scope="col" class="text-end">Key</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for node in network.nodes %}
-            {% set key_collapse_id = "nodeKeyCollapse-" ~ loop.index %}
-            <tr>
-              <td class="fw-semibold">{{ node.name or "—" }}</td>
-              <td class="text-break">
-                {% if node.url %}
-                  <a href="{{ node.url }}" target="_blank" rel="noopener">{{ node.url }}</a>
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-              <td class="text-wrap">{{ node.description or "—" }}</td>
-              <td class="text-end">
-                {% if node.public_key %}
-                  <button class="btn btn-sm btn-outline-secondary"
-                          type="button"
-                          data-bs-toggle="collapse"
-                          data-bs-target="#{{ key_collapse_id }}"
-                          aria-expanded="false"
-                          aria-controls="{{ key_collapse_id }}">
-                    Show
-                  </button>
-                {% else %}
-                  <span class="text-muted small">No key</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% if node.public_key %}
-              <tr class="border-0">
-                <td colspan="4" class="p-0">
-                  <div class="collapse" id="{{ key_collapse_id }}">
-                    <div class="p-3 border-top bg-light">
-                      <pre class="small mb-0">{{ node.public_key }}</pre>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            {% endif %}
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-{% else %}
-  <div class="alert alert-info">No nodes registered for this network.</div>
-{% endif %}
+  {% if network.description %}
+    <p class="lede">{{ network.description }}</p>
+  {% else %}
+    <p class="muted">This network has no description.</p>
+  {% endif %}
 
-<!-- Audit trail -->
-<h2 class="h5 mb-3">Audit Trail</h2>
-{% if audits and audits|length > 0 %}
-  <div class="accordion" id="auditAccordion">
-    {% for a in audits %}
-      {% set acc_id = "auditItem-" ~ loop.index %}
-      {% set collapse_id = "auditCollapse-" ~ loop.index %}
-      {% set patch_collapse_id = "patchCollapse-" ~ loop.index %}
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="{{ acc_id }}">
-          <button class="accordion-button collapsed" type="button"
-                  data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}"
-                  aria-expanded="false" aria-controls="{{ collapse_id }}">
-            <div class="d-flex flex-column">
-              <span class="fw-semibold">{{ a.timestamp }}</span>
-              <span class="small text-muted">Action: {{ a.action }} · Version {{ a.version }}</span>
-            </div>
-          </button>
-        </h2>
-        <div id="{{ collapse_id }}" class="accordion-collapse collapse" aria-labelledby="{{ acc_id }}" data-bs-parent="#auditAccordion">
-          <div class="accordion-body">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <dl class="row mb-0">
-                  <dt class="col-sm-4">Version</dt>
-                  <dd class="col-sm-8">{{ a.version }}</dd>
+  <dl class="facts">
+    <dt>Network ID</dt>
+    <dd><code>{{ network.network_id }}</code> {{ copy_button(network.network_id, 'Copy network ID') }}</dd>
 
-                  <dt class="col-sm-4">Action</dt>
-                  <dd class="col-sm-8">{{ a.action }}</dd>
+    <dt>Nodes</dt>
+    <dd>{{ network.nodes|length }}</dd>
 
-                  <dt class="col-sm-4">Timestamp</dt>
-                  <dd class="col-sm-8">{{ a.timestamp }}</dd>
-
-                  <dt class="col-sm-4">Actor</dt>
-                  <dd class="col-sm-8"><code class="small">{{ a.actor }}</code></dd>
-                </dl>
-              </div>
-              <div class="col-md-6">
-                <dl class="row mb-0">
-                  <dt class="col-sm-4">Hash (before)</dt>
-                  <dd class="col-sm-8"><code class="small">{{ a.hash_before or "—" }}</code></dd>
-
-                  <dt class="col-sm-4">Hash (after)</dt>
-                  <dd class="col-sm-8"><code class="small">{{ a.hash_after }}</code></dd>
-
-                  <dt class="col-sm-4">IP</dt>
-                  <dd class="col-sm-8"><code class="small">{{ a.request_detail.ip_address }}</code></dd>
-
-                  <dt class="col-sm-4">User Agent</dt>
-                  <dd class="col-sm-8"><span class="small">{{ a.request_detail.user_agent }}</span></dd>
-                </dl>
-              </div>
-            </div>
-
-            <!-- Patch list: folded by default even when event is expanded -->
-            {% if a.patch and a.patch|length > 0 %}
-              <div class="mt-3">
-                <button class="btn btn-sm btn-outline-secondary" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#{{ patch_collapse_id }}"
-                        aria-expanded="false" aria-controls="{{ patch_collapse_id }}">
-                  Show patch ({{ a.patch|length }} change{{ 's' if a.patch|length != 1 else '' }})
-                </button>
-                <div class="collapse mt-2" id="{{ patch_collapse_id }}">
-                  <div class="table-responsive">
-                    <table class="table table-sm table-striped align-middle">
-                      <thead class="table-light">
-                        <tr>
-                          <th scope="col">Op</th>
-                          <th scope="col">Path</th>
-                          <th scope="col">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for pe in a.patch %}
-                          <tr>
-                            <td><span class="badge text-bg-secondary">{{ pe.op }}</span></td>
-                            <td><code class="small">{{ pe.path }}</code></td>
-                            <td class="small">
-                              {% if pe.value is not none %}
-                                <pre class="mb-0 small text-wrap">{{ pe.value }}</pre>
-                              {% else %}
-                                —
-                              {% endif %}
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            {% endif %}
-          </div>
+    <dt>Public key</dt>
+    <dd>
+      <details class="disclosure">
+        <summary>Show key</summary>
+        <div class="key-block">
+          <pre>{{ network.public_key }}</pre>
+          {{ copy_button(network.public_key, 'Copy network public key') }}
         </div>
-      </div>
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="alert alert-info">No audit events for this network.</div>
-{% endif %}
+      </details>
+    </dd>
+  </dl>
 
+  <section class="section" aria-labelledby="nodes-heading">
+    <div class="section-head">
+      <h2 id="nodes-heading">Nodes <span class="count">{{ network.nodes|length }}</span></h2>
+    </div>
+
+    {% if network.nodes %}
+      <ul class="list">
+        {% for node in network.nodes %}
+          <li class="node">
+            <div class="node__title">{{ node.name or "Unnamed node" }}</div>
+            {% if node.url %}
+              <div class="node__url">
+                <a href="{{ node.url }}" rel="noopener noreferrer" target="_blank">{{ node.url|e|replace('/', '/<wbr>'|safe) }}</a>
+                {{ copy_button(node.url, 'Copy URL of ' ~ (node.name or 'node')) }}
+              </div>
+            {% endif %}
+            {% if node.description %}<p>{{ node.description }}</p>{% endif %}
+            {% if node.public_key %}
+              <details class="disclosure">
+                <summary>Public key</summary>
+                <div class="key-block">
+                  <pre>{{ node.public_key }}</pre>
+                  {{ copy_button(node.public_key, 'Copy public key of ' ~ (node.name or 'node')) }}
+                </div>
+              </details>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty"><p>No nodes are registered for this network.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="section" aria-labelledby="audit-heading">
+    <div class="section-head">
+      <h2 id="audit-heading">Audit trail <span class="count">{{ audits|length }}</span></h2>
+    </div>
+
+    {% if audits %}
+      <ul class="list">
+        {% for a in audits|reverse %}
+          <li>
+            <details class="audit">
+              <summary>
+                <time datetime="{{ a.timestamp }}">{{ a.timestamp[:16]|replace('T', ' ') }} UTC</time>
+                <span class="audit__action">{{ a.action }}</span>
+                <span class="audit__meta">version {{ a.version }} by {{ a.actor }}</span>
+              </summary>
+
+              <div class="audit__body">
+                <dl class="facts">
+                  <dt>Actor</dt>
+                  <dd>{{ a.actor }}</dd>
+                  <dt>Hash before</dt>
+                  <dd><code>{{ a.hash_before or "none" }}</code></dd>
+                  <dt>Hash after</dt>
+                  <dd><code>{{ a.hash_after }}</code></dd>
+                  <dt>IP address</dt>
+                  <dd><code>{{ a.request_detail.ip_address }}</code></dd>
+                  <dt>User agent</dt>
+                  <dd>{{ a.request_detail.user_agent }}</dd>
+                </dl>
+
+                {% if a.patch %}
+                  <details class="disclosure patch">
+                    <summary>{{ a.patch|length }} change{{ 's' if a.patch|length != 1 }}</summary>
+                    <div class="table-wrap">
+                      <table class="data-table">
+                        <thead>
+                          <tr><th scope="col">Operation</th><th scope="col">Path</th><th scope="col">Value</th></tr>
+                        </thead>
+                        <tbody>
+                          {% for pe in a.patch %}
+                            <tr>
+                              <td>{{ pe.op }}</td>
+                              <td><code>{{ pe.path }}</code></td>
+                              <td>{% if pe.value is not none %}<pre>{{ pe.value }}</pre>{% else %}<span class="muted">none</span>{% endif %}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                {% endif %}
+              </div>
+            </details>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty"><p>No audit events are recorded for this network.</p></div>
+    {% endif %}
+  </section>
 {% endblock %}

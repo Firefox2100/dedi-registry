@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
@@ -69,6 +70,7 @@ class MongoNetworkRepository(NetworkRepository):
                      cursor_id: str | None = None,
                      limit: int = 0,
                      forward: bool = True,
+                     name: str | None = None,
                      ) -> tuple[list[Network], str | None, str | None]:
         """
         Filter networks based on visibility and registration status.
@@ -76,12 +78,16 @@ class MongoNetworkRepository(NetworkRepository):
         :param cursor_id: The ID of the last network from the previous page for pagination.
         :param limit: The maximum number of records to return. 0 means no limit.
         :param forward: Direction of pagination; True for forward, False for backward.
+        :param name: Optional text the network name must contain, matched case-insensitively
+            and literally (no pattern syntax).
         :return: A list of Network objects that match the filter criteria, with the cursor id
             for the first and last records if more records are available.
         """
         query: dict = {}
         if status is not None:
             query['status'] = status.value
+        if name:
+            query['networkName'] = {'$regex': re.escape(name), '$options': 'i'}
 
         oid: ObjectId | None = None
         if cursor_id is not None:
@@ -112,7 +118,7 @@ class MongoNetworkRepository(NetworkRepository):
             node.public_key = reformat_pem(node.public_key)
 
         await self.collection.update_one(
-            {'networkId': network.network_id},
+            {'networkId': str(network.network_id)},
             {'$set': network.model_dump()},
             upsert=True
         )
@@ -132,7 +138,7 @@ class MongoNetworkRepository(NetworkRepository):
         :return: None
         """
         await self.collection.update_one(
-            {'networkId': network.network_id},
+            {'networkId': str(network.network_id)},
             {'$set': network.model_dump()}
         )
 
@@ -278,7 +284,7 @@ class MongoNetworkAuditRepository(NetworkAuditRepository):
         :return: None
         """
         existing_doc = await self.collection.find_one(
-            {'networkId': audit.network_id, 'version': audit.version},
+            {'networkId': str(audit.network_id), 'version': audit.version},
             {'_id': 1}
         )
 

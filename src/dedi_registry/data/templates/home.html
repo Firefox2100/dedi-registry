@@ -1,51 +1,57 @@
 {% extends "base.html" %}
+{% from "_macros.html" import search_form, network_table %}
+{% block header_search %}{% endblock %}
 {% block content %}
-  <div class="row g-4">
-    <div class="col-12">
-      <h1 class="h3 mb-3">Welcome to the Decentralised Discovery Networks Registry</h1>
-      <p class="text-muted">
-          This registry contains information about networks created and operated by the
-          <a href="https://github.com/Firefox2100/dedi-gateway" target="_blank" class="link-muted">Decentralised Discovery Gateway project</a>,
-          or any other services running a compatible protocol implementation. Currently, the registry
-          contains {{ network_count }} networks and {{ node_count }} nodes.
+  <section class="intro">
+    <h1>Find a network to join</h1>
+    <p class="lede">
+      Networks that run the Decentralised Discovery Gateway protocol list themselves here.
+      Open one to see its nodes and public keys.
+      {{ network_count }} {{ 'network' if network_count == 1 else 'networks' }} and
+      {{ node_count }} {{ 'node' if node_count == 1 else 'nodes' }} are listed.
+    </p>
+    {{ search_form(none, 'home-search', large=True) }}
+  </section>
+
+  <section aria-labelledby="networks-heading">
+    <div class="section-head">
+      <h2 id="networks-heading">Networks</h2>
+      {% if has_more %}<a href="/networks">View all {{ network_count }}</a>{% endif %}
+    </div>
+
+    {% if networks %}
+      {{ network_table(networks) }}
+    {% else %}
+      <div class="empty">
+        <h2>No networks are listed yet</h2>
+        <p>Networks appear here once a gateway has registered one and an administrator has approved it.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="section columns" aria-label="About the registry">
+    <div>
+      <h2>About the registry</h2>
+      <p>
+        The Decentralised Discovery Gateway is a service offering plug-and-play message and data
+        federation across different nodes. Each node controls user authorisation autonomously, and
+        networks can outlive the project or portal that created them.
+      </p>
+      <p>
+        Those networks are local and not controlled by any central authority, so they are often hard
+        to find: you need to know which node to ask and which network you want. This registry lets
+        services running a compatible protocol implementation list their networks and nodes, so
+        people outside the project can find and join them.
       </p>
     </div>
-
-    <div class="col-sm-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-body text-center">
-          <div class="display-4 fw-bold">{{ network_count }}</div>
-          <div class="text-secondary">Networks</div>
-        </div>
-      </div>
+    <div>
+      <h2>List your network</h2>
+      <p>
+        Gateways register a network through the API. A registration carries a proof-of-work
+        solution, and later changes are signed with the network's management key. New registrations
+        may wait for an administrator's approval before they appear in the list.
+      </p>
+      <p><a href="/docs">Read the API documentation</a></p>
     </div>
-
-    <div class="col-sm-6">
-      <div class="card shadow-sm h-100">
-        <div class="card-body text-center">
-          <div class="display-4 fw-bold">{{ node_count }}</div>
-          <div class="text-secondary">Nodes</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12">
-      <section class="mt-4">
-        <h2 class="h5">About</h2>
-        <p>
-          The Decentralised Discovery Gateway is a service offering plug-and-play message and data federation across
-          different nodes. It features a fully decentralised architecture with minimal trust, where each node
-          controls user authorisation autonomously. It also allows nodes to exist beyond a project or cohort's
-          lifetime, even after the original operators have gone or the central portal has been shut down.
-        </p>
-        <p>
-          The networks created by Decentralised Discovery Gateway nodes are local -- means that they are not controlled
-          by any central authority. As a result, it's often hard to find -- you need to know which node to check
-          and what network you want to join. This registry aims to solve that problem by allowing services running
-          a compatible protocol implementation to register their networks and nodes here, making them discoverable
-          and accessible to users from outside their local projects.
-        </p>
-      </section>
-    </div>
-  </div>
+  </section>
 {% endblock %}

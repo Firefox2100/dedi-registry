@@ -1,0 +1,64 @@
+{# Shared components: one definition per control so every page uses the same vocabulary #}
+
+{% macro icon(name) -%}
+  {%- if name == 'copy' -%}
+    <svg class="icon-copy" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.25" y="5.25" width="8" height="8" rx="1.25"/><path d="M10.75 2.75h-7a1 1 0 0 0-1 1v7"/></svg>
+    <svg class="icon-check" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>
+  {%- elif name == 'search' -%}
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro status_pill(status) -%}
+  {%- set labels = {'active': 'Active', 'pending': 'Pending', 'rejected': 'Rejected', 'blacklisted': 'Banned'} -%}
+  <span class="pill pill--{{ status }}">{{ labels.get(status, status|title) }}</span>
+{%- endmacro %}
+
+{% macro copy_button(value, label) -%}
+  <button type="button" class="copy" data-copy="{{ value }}" hidden>
+    {{ icon('copy') }}<span class="visually-hidden">{{ label }}</span>
+  </button>
+{%- endmacro %}
+
+{% macro fingerprint(value, label) -%}
+  {%- set text = value|string -%}
+  <span class="fingerprint"><code title="{{ text }}">{{ text[:8] }}…{{ text[-4:] }}</code>{{ copy_button(text, label) }}</span>
+{%- endmacro %}
+
+{% macro search_form(query, field_id, large=False, placeholder='Search networks by name') -%}
+  <form class="search{{ ' search--large' if large }}" role="search" method="get" action="/networks">
+    <label class="visually-hidden" for="{{ field_id }}">Search networks by name</label>
+    <input class="search__input" id="{{ field_id }}" type="search" name="q" value="{{ query or '' }}"
+           placeholder="{{ placeholder }}" maxlength="100" autocomplete="off" enterkeyhint="search">
+    <button class="search__submit" type="submit">{{ icon('search') }}<span>Search</span></button>
+  </form>
+{%- endmacro %}
+
+{% macro network_table(networks, show_status=False) -%}
+  <div class="table-wrap">
+    <table class="data-table">
+      <caption class="visually-hidden">Networks</caption>
+      <thead>
+        <tr>
+          <th scope="col">Network</th>
+          {% if show_status %}<th scope="col">Status</th>{% endif %}
+          <th scope="col" class="num">Nodes</th>
+          <th scope="col" class="col-id">ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in networks %}
+          <tr>
+            <td>
+              <a class="name" href="/networks/{{ n.network_id }}">{{ n.network_name }}</a>
+              {% if n.description %}<div class="summary">{{ n.description }}</div>{% endif %}
+            </td>
+            {% if show_status %}<td>{{ status_pill(n.status.value) }}</td>{% endif %}
+            <td class="num">{{ n.nodes|length }}</td>
+            <td class="col-id">{{ fingerprint(n.network_id, 'Copy network ID of ' ~ n.network_name) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{%- endmacro %}

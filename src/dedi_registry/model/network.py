@@ -143,6 +143,7 @@ class NetworkRepository(ABC):
                      cursor_id: str | None = None,
                      limit: int = 0,
                      forward: bool = True,
+                     name: str | None = None,
                      ) -> tuple[list[Network], str | None, str | None]:
         """
         Filter networks based on visibility and registration status.
@@ -150,6 +151,8 @@ class NetworkRepository(ABC):
         :param cursor_id: The ID of the last network from the previous page for pagination.
         :param limit: The maximum number of records to return. 0 means no limit.
         :param forward: Direction of pagination; True for forward, False for backward.
+        :param name: Optional text the network name must contain, matched case-insensitively
+            and literally (no pattern syntax).
         :return: A list of Network objects that match the filter criteria, with the cursor id
             for the first and last records if more records are available.
         """

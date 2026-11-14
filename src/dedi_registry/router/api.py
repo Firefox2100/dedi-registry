@@ -336,7 +336,7 @@ async def update_network_v1(network_id: str,
         management_key.verify(
             signature=bytes.fromhex(sender_signature),
             data=serialised_new_network.encode(),
-            signature_algorithm=ec.ECDSA(hashes.SHA256())
+            signature_algorithm=ec.ECDSA(hashes.SHA384())
         )
     except InvalidSignature as e:
         LOGGER.warning(
@@ -349,6 +349,9 @@ async def update_network_v1(network_id: str,
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Invalid signature from sender node.'
         )
+
+    # Status is controlled by the registry admin, never by the submitting node
+    network.status = existing_network.status
 
     json_dump = network.model_dump()
     json_str = network.model_dump_json()
